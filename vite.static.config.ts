@@ -9,5 +9,10 @@ export default defineConfig({
   plugins: [react()],
   resolve: { alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
   css: { postcss: { plugins: [tailwindcss()] } },
+  server: {
+    port: 5180,
+    open: true,
+  },
   build: { outDir: 'dist/client' },
 });
+

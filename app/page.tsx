@@ -18,6 +18,8 @@ import {
   ChevronRight,
   CheckCircle2,
   CircleHelp,
+  RefreshCw,
+  MapPin,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -57,6 +59,10 @@ import {
   parseCSV,
   toCSV,
   units,
+  calculateDewPoint,
+  calculateHeatIndex,
+  fetchOpenMeteoStation,
+  CITY_PRESETS,
   type Channel,
   type Method,
   type Reading,
@@ -129,11 +135,50 @@ export default function Home() {
     [cursor, setCursor] = useState(960),
     [selected, setSelected] = useState<number | null>(null);
   const [reviews, setReviews] = useState<
-      Record<number, { status: string; at: string }>
-    >({}),
-    [error, setError] = useState(''),
+    Record<number, { status: string; at: string }>
+  >(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('mausamguard_reviews');
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return {};
+  });
+  const [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  const [selectedCity, setSelectedCity] = useState<string>('delhi');
+  const [loadingLive, setLoadingLive] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('mausamguard_reviews', JSON.stringify(reviews));
+    } catch {}
+  }, [reviews]);
+
+  const loadLiveStation = async (cityKey: string) => {
+    const city = CITY_PRESETS[cityKey];
+    if (!city) return;
+    setLoadingLive(true);
+    setError('');
+    try {
+      const result = await fetchOpenMeteoStation(city.lat, city.lon, city.name);
+      setBase(result.rows);
+      setSource(result.source);
+      setScenario('none');
+      setPlaying(false);
+      setCursor(result.rows.length);
+      setSelected(null);
+      setNotice(
+        `Loaded 14 days of real meteorological station observations for ${city.name} (${result.rows.length} hourly readings). Anomaly models calibrated.`,
+      );
+    } catch (err) {
+      setError((err as Error).message || 'Failed to fetch live station data.');
+    } finally {
+      setLoadingLive(false);
+    }
+  };
   const rows = useMemo(
       () => inject(base, scenario, channel, severity),
       [base, scenario, channel, severity],
@@ -403,17 +448,21 @@ export default function Home() {
           </Button>
         </section>
         <div className="source-strip">
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <FlaskConical size={18} />
             <strong>{source}</strong>
             <span className="divider" />
             <span>{base.length.toLocaleString()} observations</span>
           </div>
-          <span>
-            {source.startsWith('Synthetic')
-              ? 'Generated demonstration data · not a live IMD feed'
-              : 'Single-station upload · labels supplied by user'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span>
+              {source.startsWith('Synthetic')
+                ? 'Generated demonstration data · not a live IMD feed'
+                : source.startsWith('Live Station')
+                  ? 'Real-world station telemetry · Open-Meteo API feed'
+                  : 'Single-station upload · labels supplied by user'}
+            </span>
+          </div>
         </div>
         <Tabs defaultValue="monitor" className="main-tabs">
           <TabsList variant="line">
@@ -484,6 +533,28 @@ export default function Home() {
                   <small>%</small>
                 </strong>
                 <p>Last replayed observation</p>
+              </article>
+              <article>
+                <span>
+                  <Droplets />
+                  Dew point
+                </span>
+                <strong>
+                  {fmt(calculateDewPoint(last.temperature, last.humidity))}
+                  <small>°C</small>
+                </strong>
+                <p>Moisture condensation temp</p>
+              </article>
+              <article>
+                <span>
+                  <Thermometer />
+                  Heat index
+                </span>
+                <strong>
+                  {fmt(calculateHeatIndex(last.temperature, last.humidity))}
+                  <small>°C</small>
+                </strong>
+                <p>Apparent perceived temp</p>
               </article>
               <article className="stat-alert">
                 <span>
@@ -977,6 +1048,53 @@ export default function Home() {
             </section>
           </TabsContent>
           <TabsContent value="data">
+            <section className="panel" style={{ marginBottom: '22px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
+                <div style={{ maxWidth: '600px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <span className="upload-icon" style={{ padding: '8px', borderRadius: '8px', background: '#e0f2fe', color: '#0369a1' }}>
+                      <MapPin size={20} />
+                    </span>
+                    <p className="eyebrow" style={{ margin: 0 }}>METEOROLOGICAL TELEMETRY ARCHIVE</p>
+                  </div>
+                  <h2 style={{ margin: '6px 0 10px' }}>Connect Live Indian Weather Station</h2>
+                  <p style={{ color: '#52667c', fontSize: '0.92rem', lineHeight: '1.6' }}>
+                    Fetch authentic, real-world hourly sensor readings (past 14 days · 336 observations) directly from automated weather station archives across India via Open-Meteo. Runs anomaly detection and ridge regression models over real atmospheric data.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '300px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#49627b' }}>
+                    SELECT OBSERVATORY:
+                  </label>
+                  <select
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                    style={{
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #c9d8e8',
+                      background: '#fff',
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      color: '#13263c',
+                    }}
+                  >
+                    {Object.entries(CITY_PRESETS).map(([k, c]) => (
+                      <option key={k} value={k}>
+                        {c.name}, {c.state} ({c.lat.toFixed(2)}°N, {c.lon.toFixed(2)}°E)
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    disabled={loadingLive}
+                    onClick={() => void loadLiveStation(selectedCity)}
+                  >
+                    <RefreshCw className={loadingLive ? 'animate-spin' : ''} />
+                    {loadingLive ? 'Connecting to observatory...' : `Load 14-day telemetry for ${CITY_PRESETS[selectedCity]?.name}`}
+                  </Button>
+                </div>
+              </div>
+            </section>
             <div className="data-grid">
               <section className="panel upload-panel">
                 <span className="upload-icon">

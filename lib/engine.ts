@@ -595,3 +595,150 @@ export function evaluate(a: Analysis, method: Method, until = a.rows.length) {
     known: rows.length - rows.filter((r) => r.label === 'unknown').length,
   };
 }
+
+/**
+ * Calculates the Dew Point in °C using the Magnus-Tetens approximation.
+ */
+export function calculateDewPoint(
+  tempC: number | null,
+  rhPercent: number | null,
+): number | null {
+  if (tempC === null || rhPercent === null || rhPercent <= 0) return null;
+  const a = 17.27;
+  const b = 237.7;
+  const alpha = (a * tempC) / (b + tempC) + Math.log(rhPercent / 100);
+  const dp = (b * alpha) / (a - alpha);
+  return Number.isFinite(dp) ? +dp.toFixed(2) : null;
+}
+
+/**
+ * Calculates the Heat Index (apparent temperature) in °C using NOAA's formula.
+ */
+export function calculateHeatIndex(
+  tempC: number | null,
+  rhPercent: number | null,
+): number | null {
+  if (tempC === null || rhPercent === null) return null;
+  // Convert C to F
+  const tf = tempC * 1.8 + 32;
+  const rh = rhPercent;
+
+  // Below 80°F (approx 26.7°C), Heat Index is not significantly elevated above actual temperature
+  if (tf < 80) {
+    const simpleHi = 0.5 * (tf + 61.0 + (tf - 68.0) * 1.2 + rh * 0.094);
+    const avgHi = (simpleHi + tf) / 2;
+    return +((avgHi - 32) / 1.8).toFixed(2);
+  }
+
+  // Rothfusz regression equation
+  let hi =
+    -42.379 +
+    2.04901523 * tf +
+    10.14333127 * rh -
+    0.22475541 * tf * rh -
+    0.00683783 * tf * tf -
+    0.05481717 * rh * rh +
+    0.00122874 * tf * tf * rh +
+    0.00085282 * tf * rh * rh -
+    0.00000199 * tf * tf * rh * rh;
+
+  // Adjustments
+  if (rh < 13 && tf >= 80 && tf <= 112) {
+    const adj = ((13 - rh) / 4) * Math.sqrt((17 - Math.abs(tf - 95)) / 17);
+    hi -= adj;
+  } else if (rh > 85 && tf >= 80 && tf <= 87) {
+    const adj = ((rh - 85) / 10) * ((87 - tf) / 5);
+    hi += adj;
+  }
+
+  const hiC = (hi - 32) / 1.8;
+  return Number.isFinite(hiC) ? +hiC.toFixed(2) : null;
+}
+
+export type CityPreset = {
+  name: string;
+  lat: number;
+  lon: number;
+  state: string;
+};
+
+export const CITY_PRESETS: Record<string, CityPreset> = {
+  delhi: { name: 'New Delhi', lat: 28.6139, lon: 77.209, state: 'Delhi' },
+  mumbai: { name: 'Mumbai', lat: 19.076, lon: 72.8777, state: 'Maharashtra' },
+  bengaluru: {
+    name: 'Bengaluru',
+    lat: 12.9716,
+    lon: 77.5946,
+    state: 'Karnataka',
+  },
+  kolkata: {
+    name: 'Kolkata',
+    lat: 22.5726,
+    lon: 88.3639,
+    state: 'West Bengal',
+  },
+  chennai: { name: 'Chennai', lat: 13.0827, lon: 80.2707, state: 'Tamil Nadu' },
+  shimla: {
+    name: 'Shimla',
+    lat: 31.1048,
+    lon: 77.1734,
+    state: 'Himachal Pradesh',
+  },
+  hyderabad: {
+    name: 'Hyderabad',
+    lat: 17.385,
+    lon: 78.4867,
+    state: 'Telangana',
+  },
+  pune: { name: 'Pune', lat: 18.5204, lon: 73.8567, state: 'Maharashtra' },
+};
+
+/**
+ * Fetches real weather station observations from Open-Meteo API.
+ */
+export async function fetchOpenMeteoStation(
+  lat: number,
+  lon: number,
+  locationName: string,
+  days = 14,
+): Promise<{ rows: Reading[]; source: string }> {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,surface_pressure&past_days=${days}&forecast_days=0`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Open-Meteo API error: ${response.status} ${response.statusText}`);
+  }
+  const data = (await response.json()) as {
+    hourly?: {
+      time?: string[];
+      temperature_2m?: (number | null)[];
+      relative_humidity_2m?: (number | null)[];
+      surface_pressure?: (number | null)[];
+    };
+  };
+  const times: string[] = data?.hourly?.time || [];
+  const temps: (number | null)[] = data?.hourly?.temperature_2m || [];
+  const hums: (number | null)[] = data?.hourly?.relative_humidity_2m || [];
+  const press: (number | null)[] = data?.hourly?.surface_pressure || [];
+
+  if (times.length < 120) {
+    throw new Error(`Insufficient data returned from API (${times.length} rows, minimum 120 required).`);
+  }
+
+  const rows: Reading[] = times.map((t, idx) => {
+    // Open-Meteo timestamps are in UTC format "YYYY-MM-DDTHH:00"
+    const timestamp = new Date(t + 'Z').getTime();
+    return {
+      timestamp,
+      temperature: temps[idx] != null ? +temps[idx]!.toFixed(2) : null,
+      pressure: press[idx] != null ? +press[idx]!.toFixed(2) : null,
+      humidity: hums[idx] != null ? +hums[idx]!.toFixed(2) : null,
+      label: 'normal',
+    };
+  });
+
+  return {
+    rows,
+    source: `Live Station: ${locationName} (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E)`,
+  };
+}
+

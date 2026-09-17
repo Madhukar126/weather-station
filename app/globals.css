@@ -375,7 +375,7 @@ strong {
 }
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 0;
   border: 1px solid #dbe4ee;
   border-radius: 10px;
@@ -384,11 +384,11 @@ strong {
   overflow: hidden;
 }
 .stats article {
-  padding: 20px 23px;
+  padding: 18px 16px;
   border-right: 1px solid #e0e7ef;
 }
 .stats article:last-child {
-  border: 0;
+  border-right: 0;
 }
 .stats article > span {
   display: flex;
@@ -923,12 +923,12 @@ footer > span {
     margin: 0;
   }
   .stats {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
-  .stats article:nth-child(2) {
+  .stats article:nth-child(2n) {
     border-right: 0;
   }
-  .stats article:nth-child(-n + 2) {
+  .stats article:nth-child(-n + 4) {
     border-bottom: 1px solid #e0e7ef;
   }
   .method-grid {

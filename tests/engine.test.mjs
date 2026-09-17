@@ -10,6 +10,8 @@ import {
   evaluate,
   events,
   fitForest,
+  calculateDewPoint,
+  calculateHeatIndex,
 } from '../lib/engine.ts';
 test('CSV round trip preserves missing values and unknown labels', () => {
   const input = demoData();
@@ -174,3 +176,24 @@ test('False-alert exposure uses elapsed reviewed time and excludes long gaps', (
   assert.equal(v.normalMinutes, 30);
   assert.equal(v.falsePerDay, 48);
 });
+
+test('calculateDewPoint accurately computes dew points and handles edge cases', () => {
+  assert.equal(calculateDewPoint(null, 50), null);
+  assert.equal(calculateDewPoint(25, null), null);
+  assert.equal(calculateDewPoint(25, -1), null);
+  // At 25°C and 50% RH, dew point is approximately 13.9°C
+  const dp = calculateDewPoint(25, 50);
+  assert.ok(dp !== null && dp >= 13.5 && dp <= 14.2);
+  // At 100% RH, dew point equals temperature
+  const dp100 = calculateDewPoint(20, 100);
+  assert.ok(dp100 !== null && Math.abs(dp100 - 20) < 0.1);
+});
+
+test('calculateHeatIndex computes apparent temperatures accurately', () => {
+  assert.equal(calculateHeatIndex(null, 50), null);
+  assert.equal(calculateHeatIndex(25, null), null);
+  // At 30°C and 80% RH, heat index should be significantly higher than 30°C
+  const hi = calculateHeatIndex(30, 80);
+  assert.ok(hi !== null && hi > 34);
+});
+
