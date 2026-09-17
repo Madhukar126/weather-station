@@ -1,6 +1,7 @@
 # Weather Station — MausamGuard
 
 [![Deploy to GitHub Pages](https://github.com/Madhukar126/weather-station/actions/workflows/deploy.yml/badge.svg)](https://github.com/Madhukar126/weather-station/actions/workflows/deploy.yml)
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Production%20Live-black?logo=vercel)](https://weather-station-mocha.vercel.app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)
@@ -8,7 +9,8 @@
 
 An intelligent, browser-local weather station observation, monitoring, and sensor anomaly detection suite. Built with **React**, **TypeScript**, **Vite**, **Recharts**, and **Tailwind CSS**. All algorithms and models run client-side in the browser—no backend server, Python service, or API keys required.
 
-🔗 **Live Demo:** [https://Madhukar126.github.io/weather-station/](https://Madhukar126.github.io/weather-station/)
+🔗 **Live Deployment:** [https://weather-station-mocha.vercel.app](https://weather-station-mocha.vercel.app)  
+*(Backup GitHub Pages: [https://Madhukar126.github.io/weather-station/](https://Madhukar126.github.io/weather-station/))*
 
 ---
 
