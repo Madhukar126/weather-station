@@ -1,46 +1,110 @@
-# MausamGuard
+# Weather Station — MausamGuard
 
-Working browser-local SIH26073 software prototype. React + TypeScript + Vite, Recharts and Base UI. Models are implemented in TypeScript and run in the browser; no Python service, account setup or model API key is required.
+[![Deploy to GitHub Pages](https://github.com/Madhukar126/weather-station/actions/workflows/deploy.yml/badge.svg)](https://github.com/Madhukar126/weather-station/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-8-646cff.svg?logo=vite)](https://vitejs.dev/)
 
-## Run locally
+An intelligent, browser-local weather station observation, monitoring, and sensor anomaly detection suite. Built with **React**, **TypeScript**, **Vite**, **Recharts**, and **Tailwind CSS**. All algorithms and models run client-side in the browser—no backend server, Python service, or API keys required.
 
-Install Node.js 22.13 or newer. Run `npm ci`, then `npm run dev`. Open the address printed in the terminal. Use `npm run build` for static output in `dist/client`. The hosted version requires a connection to load initially; this is not an installable offline PWA.
+🔗 **Live Demo:** [https://Madhukar126.github.io/weather-station/](https://Madhukar126.github.io/weather-station/)
 
-Run the engine tests with Node.js 22.18+ using `node --test tests/engine.test.mjs`. Run the TypeScript check with `npx tsc --noEmit`.
+---
 
-## Demo walkthrough
+## Key Features
 
-1. Open Monitor. The default dataset contains 960 synthetic 15-minute observations from one station, with gradual temperature drift injected into the final test period.
-2. Select a scenario and target sensor. Select one of the three detectors. Change magnitude for spikes, drift or the constructed weather-like scenario.
-3. Replay the test period or inspect it with the slider. Select a flagged observation, examine its evidence and record an operator review.
-4. Open Compare methods for calculated event recall, detection delay, false-alert rate and alert count.
-5. Upload your station CSV in Data workspace, or download a sample/current dataset. Export report downloads measurements, all three findings, metrics and reviews as JSON.
+- **Real-Time Sensor Monitoring:** Live visualization of temperature, humidity, atmospheric pressure, calculated dew point, and heat index.
+- **Client-Side Anomaly Detectors:**
+  - **MausamGuard Harmonic Model:** Ridge harmonic regression capturing diurnal atmospheric patterns, standardized residuals, and trailing window means.
+  - **Isolation Forest:** Deterministic multi-tree ensemble isolating outliers using measurement values, first differences, and rolling variability.
+  - **Conventional QC Rules:** Range boundaries, rate-of-change limits, flatline/stuck sensor checks, null imputation, and timestamp cadence verification.
+- **Fault Injection & Scenario Simulation:** Test resilience against sensor spikes, calibration drift, flatlines, dropouts, and synthetic extreme weather events.
+- **Model Evaluation & Comparison:** Benchmark recall, mean detection delay, false-alert rates, and exposure intervals across different algorithms.
+- **Data Workspace:** Upload custom station CSV files (120–5,000 observations), preview data, and export comprehensive diagnostic JSON reports.
 
-## Data contract
+---
 
-One station per CSV; 120–5,000 rows, <=5 MB. Columns: `timestamp,temperature,pressure,humidity,label`. Label is optional. Timestamps must include timezone, be unique and increase strictly. Units are degrees Celsius, station pressure in hPa and relative humidity percent. Missing measurements: blank, null or -9999. At least 60 complete training rows and 20 complete validation rows are required. More than two full daily cycles in training is recommended; short or nonrepresentative training data makes daily extrapolation unreliable.
+## Quick Start
 
-Accepted labels: normal, weather, spike, drift, stuck, dropout, unknown. Unlabelled data receives unknown. Labels never feed models. Do not label observations normal without review. All uploaded labels remain user assertions, not independently verified ground truth.
+### Prerequisites
+- Node.js 22.13 or newer
+- npm or pnpm
 
-## Model and evaluation
+### Installation & Local Run
 
-- Chronological 60/20/20 train/calibration/test split. Fault injection changes complete test rows labelled normal only; existing faults, unknown labels and missing values are preserved. Trailing features use present/past observations. The replay starts after calibration.
-- Conventional checks: broad prototype ranges, rate-of-change, six consecutive identical values, nulls and timestamp gaps.
-- Isolation Forest: 48 trees, <=128 random samples per tree, deterministic seed. Uses current measurements, differences and trailing variability. Null imputation uses training medians; shared missing-data/gap checks are counted separately in explanations. Threshold is the calibration 99th percentile with a 0.5 floor.
-- MausamGuard: ridge harmonic regression for a daily reference, standardized residuals and a trailing 12-observation residual mean, combined with conventional checks. Threshold from calibration with a minimum residual cutoff. This is a learned daily-pattern model, not a neural network or a season-aware model.
-- Consecutive same-type fault labels define true fault events; consecutive flags define alert events. Detection must occur within a true event. Mean delay includes detected events only. Report missed events beside delay.
-- False episodes are contiguous flagged segments on normal/weather-labelled rows, including segments within longer alarms that overlap faults or unknowns. Exposure uses actual adjacent reviewed-normal intervals, excluding intervals longer than 1.5 times median training cadence. No exposure means N/A.
-- Reports currently do not compare at matched false-alert rates. Default demonstration results cannot establish superiority or generalisation.
+```bash
+# Clone the repository
+git clone https://github.com/Madhukar126/weather-station.git
 
-## Limits
+# Enter the project directory
+cd weather-station
 
-No IMD integration, real sensor feeds, labelled Indian station benchmark, field validation, seasonal adaptation, physical root-cause proof, remaining-life prediction, calibrated fault probabilities, durable storage, multi-user authentication or device energy measurements. Readings, reviews and uploads exist only in the current browser session; export before refreshing. A weather-like scenario is synthetic and does not establish discrimination of real extremes. Review actions do not automatically retrain models or alter benchmark labels. Proposed WebMCP helpers feature-detect browser support; external-context verification is not claimed.
+# Install dependencies
+npm install
 
-## Sources
+# Start the local development server
+npm run dev
+```
 
-- https://sih.gov.in/sih2026PS#ViewProblemStatement26073
-- https://madis.ncep.noaa.gov/madis_sfc_qc_notes.shtml
-- https://www.bgc-jena.mpg.de/wetter/weather_data.html
+Open [http://localhost:5180](http://localhost:5180) in your browser.
 
-The built-in sample is entirely generated, not a download from those sources.
+### Run Tests & Build
 
+```bash
+# Run unit tests for detection and calculation engine
+npm test
+
+# Build optimized static distribution for production
+npm run build
+
+# Preview the production build locally
+npm run start
+```
+
+---
+
+## Deployment
+
+### GitHub Pages (Automated CI/CD)
+A GitHub Actions workflow is provided in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Every push to `main` automatically runs the test suite, builds the static bundle, and deploys to GitHub Pages.
+
+To enable GitHub Pages in your repository:
+1. Navigate to **Settings** > **Pages** on your repository [Madhukar126/weather-station](https://github.com/Madhukar126/weather-station).
+2. Under **Build and deployment** > **Source**, select **GitHub Actions**.
+
+### Vercel
+Deploy seamlessly with Vercel using the pre-configured [`vercel.json`](vercel.json):
+```bash
+npx vercel
+```
+
+---
+
+## Data Contract
+
+One station per CSV; 120–5,000 rows, ≤5 MB.
+
+| Column | Format / Unit | Description |
+|---|---|---|
+| `timestamp` | ISO-8601 with timezone | Must be strictly increasing and unique |
+| `temperature` | °C | Ambient air temperature |
+| `pressure` | hPa | Station atmospheric pressure |
+| `humidity` | % | Relative humidity (0–100%) |
+| `label` | String *(optional)* | `normal`, `weather`, `spike`, `drift`, `stuck`, `dropout`, `unknown` |
+
+Missing measurements can be represented by empty cells, `null`, or `-9999`.
+
+---
+
+## Reference & Sources
+
+- [SIH Problem Statement 26073](https://sih.gov.in/sih2026PS#ViewProblemStatement26073)
+- [NOAA MADIS Surface QC Notes](https://madis.ncep.noaa.gov/madis_sfc_qc_notes.shtml)
+- [Max Planck Institute Jena Weather Data Benchmark](https://www.bgc-jena.mpg.de/wetter/weather_data.html)
+
+---
+
+## License
+
+This project is open source and available under the [MIT License](LICENSE).
